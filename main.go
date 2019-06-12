@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/nmartinpunchh/go-redis-pubsub-example/pubsub"
-	"gopkg.in/redis.v2"
 )
 
 type food struct {

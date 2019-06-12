@@ -4,58 +4,53 @@ import (
 	"log"
 	"net"
 	"reflect"
-	"time"
 
-	"gopkg.in/redis.v2"
+	"github.com/go-redis/redis"
 )
 
+// Subscriber ..
 type Subscriber struct {
-	pubsub   *redis.PubSub
+	pubsub   *redis.Client
 	channel  string
 	callback processFunc
 }
 
 type processFunc func(string, string)
 
+// NewSubscriber ..
 func NewSubscriber(channel string, fn processFunc) (*Subscriber, error) {
 	var err error
 	// TODO Timeout param?
 
 	s := Subscriber{
-		pubsub:   Service.client.PubSub(),
+		pubsub:   Service.client,
 		channel:  channel,
 		callback: fn,
 	}
 
 	// Subscribe to the channel
-	err = s.subscribe()
+	pb, err := s.subscribe()
 	if err != nil {
 		return nil, err
 	}
-
 	// Listen for messages
-	go s.listen()
+	go s.listen(pb)
 
 	return &s, nil
 }
 
-func (s *Subscriber) subscribe() error {
-	var err error
+func (s *Subscriber) subscribe() (*redis.PubSub, error) {
 
-	err = s.pubsub.Subscribe(s.channel)
-	if err != nil {
-		log.Println("Error subscribing to channel.")
-		return err
-	}
-	return nil
+	pb := s.pubsub.Subscribe(s.channel)
+	return pb, nil
 }
 
-func (s *Subscriber) listen() error {
+func (s *Subscriber) listen(pb *redis.PubSub) error {
 	var channel string
 	var payload string
 
 	for {
-		msg, err := s.pubsub.ReceiveTimeout(time.Second)
+		msg, err := pb.Receive()
 		if err != nil {
 			if reflect.TypeOf(err) == reflect.TypeOf(&net.OpError{}) && reflect.TypeOf(err.(*net.OpError).Err).String() == "*net.timeoutError" {
 				// Timeout, ignore
@@ -75,12 +70,9 @@ func (s *Subscriber) listen() error {
 		case *redis.Message:
 			channel = m.Channel
 			payload = m.Payload
-		case *redis.PMessage:
-			channel = m.Channel
-			payload = m.Payload
-		}
 
-		// Process the message
-		go s.callback(channel, payload)
+			// Process the message
+			go s.callback(channel, payload)
+		}
 	}
 }

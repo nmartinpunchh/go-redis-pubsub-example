@@ -2,18 +2,21 @@ package pubsub
 
 import (
 	"encoding/json"
-	"gopkg.in/redis.v2"
+
+	"github.com/go-redis/redis"
 )
 
+// PubSub .
 type PubSub struct {
 	client *redis.Client
 }
 
+// Service ..
 var Service *PubSub
 
 func init() {
 	var client *redis.Client
-	client = redis.NewTCPClient(&redis.Options{
+	client = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
@@ -22,12 +25,13 @@ func init() {
 	Service = &PubSub{client}
 }
 
+// PublishString ..
 func (ps *PubSub) PublishString(channel, message string) *redis.IntCmd {
 	return ps.client.Publish(channel, message)
 }
 
+// Publish ..
 func (ps *PubSub) Publish(channel string, message interface{}) *redis.IntCmd {
-	// TODO reflect if interface{} type is string, Publish as-is
 	jsonBytes, err := json.Marshal(message)
 	if err != nil {
 		panic(err)
